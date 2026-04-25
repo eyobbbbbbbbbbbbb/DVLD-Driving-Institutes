@@ -2,7 +2,7 @@
 
 A modern driving school management dashboard built with **Next.js 16**, **Tailwind CSS 4**, and a glassmorphic dark theme. The portal is designed to support both school administrators and system administrators with fast, polished interfaces for operations, finance, communication, and analytics.
 
-## 🚀 What is DVLD Portal?
+## 🚀 What is DVLD Portal
 
 DVLD Portal is a demonstration web application for driving schools and training centers. It provides a polished admin experience for:
 - Student and course management
