@@ -40,6 +40,18 @@ export default function SidebarNav({
   onLogout,
 }: SidebarNavProps) {
   const pathname = usePathname();
+  const [localUser, setLocalUser] = React.useState<{ name: string; role: string } | null>(null);
+
+  React.useEffect(() => {
+    try {
+      const stored = localStorage.getItem('user');
+      if (stored) {
+        setLocalUser(JSON.parse(stored));
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -50,6 +62,9 @@ export default function SidebarNav({
       window.location.href = '/auth/login';
     }
   };
+
+  const displayName = localUser?.name || schoolName || 'DVLD Training Academy';
+  const displayRole = localUser?.role ? localUser.role.replace('_', ' ') : userRole || 'School Admin';
 
   return (
     <div className="glass glass-lg sticky top-0 flex h-screen w-64 flex-col border-r border-slate-800/50 bg-slate-900/80">
@@ -67,17 +82,13 @@ export default function SidebarNav({
       </div>
 
       {/* School/User Info */}
-      {schoolName && (
-        <div className="border-b border-slate-800/50 px-6 py-4">
-          <p className="text-xs text-muted-foreground">School</p>
-          <p className="mt-1 truncate text-sm font-semibold text-foreground">
-            {schoolName}
-          </p>
-          {userRole && (
-            <p className="mt-2 text-xs capitalize text-cyan-400">{userRole}</p>
-          )}
-        </div>
-      )}
+      <div className="border-b border-slate-800/50 px-6 py-4">
+        <p className="text-xs text-muted-foreground">Logged in as</p>
+        <p className="mt-1 truncate text-sm font-semibold text-foreground">
+          {displayName}
+        </p>
+        <p className="mt-2 text-xs capitalize text-cyan-400">{displayRole}</p>
+      </div>
 
       {/* Navigation Items */}
       <nav className="flex-1 overflow-y-auto px-3 py-6">

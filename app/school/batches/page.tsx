@@ -1,74 +1,156 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Calendar } from 'lucide-react';
+import { Plus, Calendar, Pencil, X, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import StatusBadge from '@/components/shared/StatusBadge';
 import LoadingSkeleton from '@/components/shared/LoadingSkeleton';
 import { Batch } from '@/lib/types';
+import { apiClient } from '@/lib/api';
+
+interface BatchFormState {
+  batchName: string;
+  startDate: string;
+  endDate: string;
+  maxCapacity: number;
+}
 
 export default function BatchesPage() {
   const [loading, setLoading] = useState(true);
   const [batches, setBatches] = useState<Batch[]>([]);
+  const [error, setError] = useState('');
+  const [schoolId, setSchoolId] = useState<number | null>(null);
+
+  // Modal state
+  const [showModal, setShowModal] = useState(false);
+  const [editingBatch, setEditingBatch] = useState<Batch | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState('');
+  const [form, setForm] = useState<BatchFormState>({
+    batchName: '',
+    startDate: new Date().toISOString().split('T')[0],
+    endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    maxCapacity: 20,
+  });
 
   useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      setBatches([
-        {
-          id: 'B001',
-          name: 'Batch A - Morning',
-          startDate: '2024-01-15',
-          endDate: '2024-04-15',
-          instructorId: 'INS001',
-          capacity: 30,
-          enrolledCount: 28,
-          status: 'ongoing',
-        },
-        {
-          id: 'B002',
-          name: 'Batch B - Afternoon',
-          startDate: '2024-02-01',
-          endDate: '2024-05-01',
-          instructorId: 'INS002',
-          capacity: 25,
-          enrolledCount: 24,
-          status: 'ongoing',
-        },
-        {
-          id: 'B003',
-          name: 'Batch C - Evening',
-          startDate: '2024-03-15',
-          endDate: '2024-06-15',
-          instructorId: 'INS003',
-          capacity: 30,
-          enrolledCount: 15,
-          status: 'ongoing',
-        },
-        {
-          id: 'B004',
-          name: 'Batch D - Weekend',
-          startDate: '2024-04-01',
-          endDate: '2024-07-01',
-          instructorId: 'INS001',
-          capacity: 20,
-          enrolledCount: 0,
-          status: 'upcoming',
-        },
-        {
-          id: 'B005',
-          name: 'Batch E - Morning (Past)',
-          startDate: '2023-10-01',
-          endDate: '2024-01-01',
-          instructorId: 'INS002',
-          capacity: 30,
-          enrolledCount: 29,
-          status: 'completed',
-        },
-      ]);
-      setLoading(false);
-    }, 1000);
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      const user = JSON.parse(storedUser);
+      setSchoolId(parseInt(user.schoolId));
+    }
   }, []);
+
+  useEffect(() => {
+    if (schoolId) loadBatches();
+  }, [schoolId]);
+
+  async function loadBatches() {
+    try {
+      setLoading(true);
+      if (!schoolId) {
+        setError('No school association found for user');
+        return;
+      }
+      const data = await apiClient.get<any[]>(`/DrivingInstitutes/${schoolId}/batches`);
+      const now = new Date();
+      const mapped = data.map((b) => {
+        const start = new Date(b.startDate);
+        const end = new Date(b.endDate);
+        let status: 'upcoming' | 'ongoing' | 'completed' = 'ongoing';
+        if (now > end) {
+          status = 'completed';
+        } else if (now < start) {
+          status = 'upcoming';
+        }
+        return {
+          id: b.batchID.toString(),
+          name: b.batchName,
+          startDate: b.startDate.split('T')[0],
+          endDate: b.endDate.split('T')[0],
+          instructorId: '',
+          capacity: b.maxCapacity,
+          enrolledCount: b.currentStudents,
+          status,
+        };
+      });
+      setBatches(mapped);
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || 'Failed to load batches');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const openAddModal = () => {
+    setEditingBatch(null);
+    setForm({
+      batchName: '',
+      startDate: new Date().toISOString().split('T')[0],
+      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      maxCapacity: 20,
+    });
+    setFormError('');
+    setShowModal(true);
+  };
+
+  const openEditModal = (batch: Batch) => {
+    setEditingBatch(batch);
+    setForm({
+      batchName: batch.name,
+      startDate: batch.startDate,
+      endDate: batch.endDate,
+      maxCapacity: batch.capacity,
+    });
+    setFormError('');
+    setShowModal(true);
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    setEditingBatch(null);
+    setFormError('');
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.batchName.trim()) {
+      setFormError('Batch name is required.');
+      return;
+    }
+    if (!schoolId) return;
+
+    setSubmitting(true);
+    setFormError('');
+    try {
+      if (editingBatch) {
+        await apiClient.put(`/DrivingInstitutes/batches/${editingBatch.id}`, {
+          instituteID: schoolId,
+          batchName: form.batchName,
+          startDate: form.startDate,
+          endDate: form.endDate,
+          maxCapacity: form.maxCapacity,
+        });
+      } else {
+        await apiClient.post('/DrivingInstitutes/batches', {
+          instituteID: schoolId,
+          batchName: form.batchName,
+          startDate: form.startDate,
+          endDate: form.endDate,
+          maxCapacity: form.maxCapacity,
+        });
+      }
+      closeModal();
+      await loadBatches();
+    } catch (err: any) {
+      console.error(err);
+      setFormError(err.message || 'Failed to save batch.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -88,11 +170,20 @@ export default function BatchesPage() {
             Manage all training batches and enrollment
           </p>
         </div>
-        <Button className="gap-2 bg-gradient-to-r from-cyan-400 to-blue-600 text-white font-semibold hover:from-cyan-500 hover:to-blue-700">
+        <Button
+          onClick={openAddModal}
+          className="gap-2 bg-gradient-to-r from-cyan-400 to-blue-600 text-white font-semibold hover:from-cyan-500 hover:to-blue-700"
+        >
           <Plus size={18} />
           Create Batch
         </Button>
       </div>
+
+      {error && (
+        <div className="rounded-lg bg-rose-500/20 p-4 text-rose-400 border border-rose-500/30">
+          {error}
+        </div>
+      )}
 
       {/* Batches Grid */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -118,11 +209,11 @@ export default function BatchesPage() {
             <div className="mb-6 space-y-2 border-b border-slate-800/50 pb-6">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Calendar size={16} />
-                <span>{batch.startDate}</span>
+                <span>Start: {batch.startDate}</span>
               </div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Calendar size={16} />
-                <span>{batch.endDate}</span>
+                <span>End: {batch.endDate}</span>
               </div>
             </div>
 
@@ -138,7 +229,7 @@ export default function BatchesPage() {
                 <div
                   className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-blue-600"
                   style={{
-                    width: `${(batch.enrolledCount / batch.capacity) * 100}%`,
+                    width: `${Math.min(100, (batch.enrolledCount / batch.capacity) * 100)}%`,
                   }}
                 ></div>
               </div>
@@ -152,19 +243,133 @@ export default function BatchesPage() {
               <Button
                 variant="ghost"
                 className="flex-1 text-cyan-400 hover:bg-cyan-500/20 hover:text-cyan-300"
+                onClick={() => {/* future: navigate to batch detail */}}
               >
                 View Details
               </Button>
               <Button
                 variant="ghost"
-                className="flex-1 text-amber-400 hover:bg-amber-500/20 hover:text-amber-300"
+                onClick={() => openEditModal(batch)}
+                className="flex-1 gap-1 text-amber-400 hover:bg-amber-500/20 hover:text-amber-300"
               >
+                <Pencil size={14} />
                 Edit
               </Button>
             </div>
           </div>
         ))}
       </div>
+
+      {batches.length === 0 && !loading && (
+        <div className="glass rounded-lg border border-slate-800/50 p-12 text-center">
+          <p className="text-muted-foreground">No batches found. Create your first batch!</p>
+        </div>
+      )}
+
+      {/* Add / Edit Modal */}
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="glass w-full max-w-md rounded-xl border border-slate-700/50 p-8 shadow-2xl mx-4">
+            <div className="mb-6 flex items-center justify-between">
+              <h2 className="text-xl font-semibold text-foreground">
+                {editingBatch ? 'Edit Batch' : 'Create New Batch'}
+              </h2>
+              <button
+                onClick={closeModal}
+                className="text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-5">
+              {formError && (
+                <div className="rounded-lg bg-rose-500/20 p-3 text-sm text-rose-400 border border-rose-500/30">
+                  {formError}
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Batch Name <span className="text-rose-400">*</span>
+                </label>
+                <Input
+                  value={form.batchName}
+                  onChange={(e) => setForm({ ...form, batchName: e.target.value })}
+                  placeholder="e.g. Batch A - June 2025"
+                  className="glass border-slate-700/50 bg-slate-900/40 text-foreground placeholder:text-muted-foreground"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Start Date
+                </label>
+                <input
+                  type="date"
+                  value={form.startDate}
+                  onChange={(e) => setForm({ ...form, startDate: e.target.value })}
+                  className="w-full rounded-lg glass border border-slate-700/50 bg-slate-900/40 px-4 py-2 text-foreground"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  End Date
+                </label>
+                <input
+                  type="date"
+                  value={form.endDate}
+                  onChange={(e) => setForm({ ...form, endDate: e.target.value })}
+                  className="w-full rounded-lg glass border border-slate-700/50 bg-slate-900/40 px-4 py-2 text-foreground"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Max Capacity
+                </label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={form.maxCapacity}
+                  onChange={(e) =>
+                    setForm({ ...form, maxCapacity: parseInt(e.target.value) || 1 })
+                  }
+                  className="glass border-slate-700/50 bg-slate-900/40 text-foreground"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <Button
+                  type="submit"
+                  disabled={submitting}
+                  className="flex-1 gap-2 bg-gradient-to-r from-cyan-400 to-blue-600 text-white font-semibold hover:from-cyan-500 hover:to-blue-700 disabled:opacity-50"
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      Saving...
+                    </>
+                  ) : editingBatch ? (
+                    'Update Batch'
+                  ) : (
+                    'Create Batch'
+                  )}
+                </Button>
+                <Button
+                  type="button"
+                  onClick={closeModal}
+                  variant="ghost"
+                  className="flex-1 text-muted-foreground hover:bg-slate-800/50"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

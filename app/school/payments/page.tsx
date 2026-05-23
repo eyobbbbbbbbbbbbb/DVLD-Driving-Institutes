@@ -8,69 +8,52 @@ import StatusBadge from '@/components/shared/StatusBadge';
 import LoadingSkeleton from '@/components/shared/LoadingSkeleton';
 import KPICard from '@/components/shared/KPICard';
 import { Payment } from '@/lib/types';
+import { apiClient } from '@/lib/api';
 
 export default function PaymentsPage() {
   const [loading, setLoading] = useState(true);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    setTimeout(() => {
-      setPayments([
-        {
-          id: 'P001',
-          studentId: '1',
-          studentName: 'Ahmed Hassan',
-          amount: 500,
-          date: '2024-05-15',
-          status: 'completed',
-          description: 'Monthly training fees',
-          paymentMethod: 'Credit Card',
-        },
-        {
-          id: 'P002',
-          studentId: '2',
-          studentName: 'Sara Johnson',
-          amount: 500,
-          date: '2024-05-14',
-          status: 'completed',
-          description: 'Monthly training fees',
-          paymentMethod: 'Bank Transfer',
-        },
-        {
-          id: 'P003',
-          studentId: '4',
-          studentName: 'Fatima Khan',
-          amount: 500,
-          date: '2024-05-20',
-          status: 'pending',
-          description: 'Monthly training fees',
-          paymentMethod: 'Pending',
-        },
-        {
-          id: 'P004',
-          studentId: '5',
-          studentName: 'Omar Sheikh',
-          amount: 500,
-          date: '2024-05-10',
-          status: 'failed',
-          description: 'Monthly training fees',
-          paymentMethod: 'Credit Card',
-        },
-        {
-          id: 'P005',
-          studentId: '3',
-          studentName: 'Mohamed Ali',
-          amount: 750,
-          date: '2024-05-18',
-          status: 'completed',
-          description: 'Advanced course fee',
-          paymentMethod: 'Cash',
-        },
-      ]);
-      setLoading(false);
-    }, 1000);
+    async function loadPayments() {
+      try {
+        const storedUser = localStorage.getItem('user');
+        if (!storedUser) {
+          setError('User not logged in');
+          setLoading(false);
+          return;
+        }
+        const user = JSON.parse(storedUser);
+        const schoolId = user.schoolId;
+        if (!schoolId) {
+          setError('No school association found for user');
+          setLoading(false);
+          return;
+        }
+
+        const data = await apiClient.get<any[]>(`/DrivingInstitutes/${schoolId}/payments`);
+        const mapped = data.map((p) => ({
+          id: p.paymentID.toString(),
+          studentId: p.enrollmentID.toString(),
+          studentName: p.studentName || 'Unknown Student',
+          amount: p.amountPaid,
+          date: p.paymentDate.split('T')[0],
+          status: 'completed' as const,
+          description: p.courseName ? `School course fee: ${p.courseName}` : 'Driving School Fee',
+          paymentMethod: p.chapaTransactionRef ? 'Chapa' : 'Other',
+        }));
+        setPayments(mapped);
+      } catch (err: any) {
+        console.error(err);
+        setError(err.message || 'Failed to load payments');
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadPayments();
   }, []);
 
   const filteredPayments = payments.filter((payment) => {

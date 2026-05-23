@@ -4,80 +4,73 @@ import { useState, useEffect } from 'react';
 import { CheckCircle, AlertCircle, Info, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import LoadingSkeleton from '@/components/shared/LoadingSkeleton';
-import { Notification } from '@/lib/types';
+import { apiClient } from '@/lib/api';
 
 export default function NotificationsPage() {
   const [loading, setLoading] = useState(true);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notifications, setNotifications] = useState<any[]>([]);
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    setTimeout(() => {
-      setNotifications([
-        {
-          id: 'N001',
-          userId: 'U001',
-          title: 'New Student Enrollment',
-          message: 'Ahmed Hassan has been enrolled in Batch A',
-          type: 'success',
-          read: false,
-          createdAt: '2024-05-20T10:30:00',
-          actionUrl: '/school/students',
-        },
-        {
-          id: 'N002',
-          userId: 'U001',
-          title: 'Attendance Alert',
-          message: 'Omar Sheikh was marked absent for 3 consecutive days',
-          type: 'warning',
-          read: false,
-          createdAt: '2024-05-19T14:45:00',
-          actionUrl: '/school/attendance',
-        },
-        {
-          id: 'N003',
-          userId: 'U001',
-          title: 'Vehicle Maintenance Due',
-          message: 'Vehicle ABC-125 requires maintenance scheduled in 5 days',
-          type: 'warning',
-          read: true,
-          createdAt: '2024-05-18T09:20:00',
-          actionUrl: '/school/vehicles',
-        },
-        {
-          id: 'N004',
-          userId: 'U001',
-          title: 'Payment Received',
-          message: 'Payment of $500 received from Sara Johnson',
-          type: 'success',
-          read: true,
-          createdAt: '2024-05-17T16:00:00',
-          actionUrl: '/school/payments',
-        },
-        {
-          id: 'N005',
-          userId: 'U001',
-          title: 'System Update',
-          message: 'Portal system will be under maintenance on May 22 from 2-4 AM',
-          type: 'info',
-          read: true,
-          createdAt: '2024-05-16T12:00:00',
-        },
-      ]);
-      setLoading(false);
-    }, 1000);
+    async function loadNotifications() {
+      try {
+        const storedUser = localStorage.getItem('user');
+        if (!storedUser) {
+          setError('User not logged in');
+          setLoading(false);
+          return;
+        }
+        const user = JSON.parse(storedUser);
+        const personId = user.personId;
+        if (!personId) {
+          setError('No person profile associated with user.');
+          setLoading(false);
+          return;
+        }
+
+        const data = await apiClient.get<any[]>(`/Messages/${personId}`);
+        const mapped = data.map((n) => ({
+          id: n.messageID.toString(),
+          userId: n.personID.toString(),
+          title: n.title,
+          message: n.content,
+          type:
+            n.messageType === 'Warning'
+              ? ('warning' as const)
+              : n.messageType === 'Success'
+              ? ('success' as const)
+              : ('info' as const),
+          read: n.isRead,
+          createdAt: n.createdAt,
+          actionUrl: null as string | null,
+        }));
+        setNotifications(mapped);
+      } catch (err: any) {
+        console.error(err);
+        setError(err.message || 'Failed to load notifications');
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadNotifications();
   }, []);
 
   const handleDelete = (id: string) => {
     setNotifications(notifications.filter((n) => n.id !== id));
   };
 
-  const handleMarkAsRead = (id: string) => {
-    setNotifications(
-      notifications.map((n) =>
-        n.id === id ? { ...n, read: true } : n
-      )
-    );
+  const handleMarkAsRead = async (id: string) => {
+    try {
+      await apiClient.patch(`/Messages/read/${id}`);
+      setNotifications(
+        notifications.map((n) =>
+          n.id === id ? { ...n, read: true } : n
+        )
+      );
+    } catch (err: any) {
+      console.error(err);
+    }
   };
 
   const filteredNotifications =
@@ -129,6 +122,12 @@ export default function NotificationsPage() {
         </p>
       </div>
 
+      {error && (
+        <div className="rounded-lg bg-rose-500/20 p-4 text-rose-400 border border-rose-500/30">
+          {error}
+        </div>
+      )}
+
       {/* Filter Tabs */}
       <div className="flex gap-4">
         <Button
@@ -164,13 +163,7 @@ export default function NotificationsPage() {
               <div className="flex-1">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <h3
-                      className={`font-semibold ${
-                        !notification.read
-                          ? 'text-foreground'
-                          : 'text-foreground'
-                      }`}
-                    >
+                    <h3 className="font-semibold text-foreground">
                       {notification.title}
                     </h3>
                     <p className="mt-1 text-sm text-muted-foreground">
@@ -195,7 +188,9 @@ export default function NotificationsPage() {
                     )}
                     {notification.actionUrl && (
                       <Button
-                        onClick={() => (window.location.href = notification.actionUrl!)}
+                        onClick={() =>
+                          (window.location.href = notification.actionUrl!)
+                        }
                         variant="ghost"
                         size="sm"
                         className="text-blue-400 hover:bg-blue-500/20"

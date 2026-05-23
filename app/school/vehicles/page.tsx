@@ -5,78 +5,50 @@ import { Plus, Wrench } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import StatusBadge from '@/components/shared/StatusBadge';
 import LoadingSkeleton from '@/components/shared/LoadingSkeleton';
-import { Vehicle } from '@/lib/types';
+import { apiClient } from '@/lib/api';
 
 export default function VehiclesPage() {
   const [loading, setLoading] = useState(true);
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [vehicles, setVehicles] = useState<any[]>([]);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    setTimeout(() => {
-      setVehicles([
-        {
-          id: 'V001',
-          registrationNumber: 'ABC-123',
-          make: 'Toyota',
-          model: 'Corolla',
-          year: 2023,
-          type: 'Sedan',
-          status: 'available',
-          lastMaintenanceDate: '2024-05-10',
-        },
-        {
-          id: 'V002',
-          registrationNumber: 'ABC-124',
-          make: 'Honda',
-          model: 'Civic',
-          year: 2023,
-          type: 'Sedan',
-          status: 'in-use',
-          lastMaintenanceDate: '2024-04-20',
-        },
-        {
-          id: 'V003',
-          registrationNumber: 'ABC-125',
-          make: 'Toyota',
-          model: 'Camry',
-          year: 2022,
-          type: 'Sedan',
-          status: 'available',
-          lastMaintenanceDate: '2024-03-15',
-        },
-        {
-          id: 'V004',
-          registrationNumber: 'ABC-126',
-          make: 'Mazda',
-          model: '3',
-          year: 2022,
-          type: 'Sedan',
-          status: 'maintenance',
-          lastMaintenanceDate: '2024-05-01',
-        },
-        {
-          id: 'V005',
-          registrationNumber: 'ABC-127',
-          make: 'Hyundai',
-          model: 'Elantra',
-          year: 2023,
-          type: 'Sedan',
-          status: 'available',
-          lastMaintenanceDate: '2024-04-25',
-        },
-        {
-          id: 'V006',
-          registrationNumber: 'ABC-128',
-          make: 'Kia',
-          model: 'K5',
-          year: 2023,
-          type: 'Sedan',
-          status: 'in-use',
-          lastMaintenanceDate: '2024-05-05',
-        },
-      ]);
-      setLoading(false);
-    }, 1000);
+    async function loadVehicles() {
+      try {
+        const storedUser = localStorage.getItem('user');
+        if (!storedUser) {
+          setError('User not logged in');
+          setLoading(false);
+          return;
+        }
+        const user = JSON.parse(storedUser);
+        const schoolId = user.schoolId;
+        if (!schoolId) {
+          setError('No school association found for user');
+          setLoading(false);
+          return;
+        }
+
+        const data = await apiClient.get<any[]>(`/DrivingInstitutes/${schoolId}/vehicles`);
+        const mapped = data.map((v) => ({
+          id: v.ownershipID.toString(),
+          registrationNumber: v.plateNumber || 'N/A',
+          make: v.make || 'Toyota',
+          model: v.modelName || 'Corolla',
+          year: v.year || 2023,
+          type: v.color || 'Sedan',
+          status: v.saleDate ? 'maintenance' : 'available',
+          lastMaintenanceDate: (v.purchaseDate || new Date().toISOString()).split('T')[0],
+        }));
+        setVehicles(mapped);
+      } catch (err: any) {
+        console.error(err);
+        setError(err.message || 'Failed to load vehicles');
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadVehicles();
   }, []);
 
   if (loading) {

@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Check, X, Clock, Download } from 'lucide-react';
+import { Check, X, Clock, Download, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import LoadingSkeleton from '@/components/shared/LoadingSkeleton';
+import { apiClient } from '@/lib/api';
 
 interface AttendanceEntry {
   studentId: string;
@@ -14,27 +15,72 @@ interface AttendanceEntry {
 
 export default function AttendancePage() {
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [batches, setBatches] = useState<any[]>([]);
+  const [selectedBatchId, setSelectedBatchId] = useState<string>('');
   const [attendance, setAttendance] = useState<AttendanceEntry[]>([]);
   const [selectedDate, setSelectedDate] = useState(
     new Date().toISOString().split('T')[0]
   );
+  const [error, setError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
 
   useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      setAttendance([
-        { studentId: '1', studentName: 'Ahmed Hassan', present: true, late: false },
-        { studentId: '2', studentName: 'Sara Johnson', present: true, late: false },
-        { studentId: '3', studentName: 'Mohamed Ali', present: false, late: false },
-        { studentId: '4', studentName: 'Fatima Khan', present: true, late: true },
-        { studentId: '5', studentName: 'Omar Sheikh', present: true, late: false },
-        { studentId: '6', studentName: 'Leila Hassan', present: false, late: false },
-        { studentId: '7', studentName: 'Karim Ahmed', present: true, late: false },
-        { studentId: '8', studentName: 'Amira Mohammed', present: true, late: false },
-      ]);
-      setLoading(false);
-    }, 1000);
+    async function loadInitialData() {
+      try {
+        const storedUser = localStorage.getItem('user');
+        if (!storedUser) {
+          setError('User not logged in');
+          setLoading(false);
+          return;
+        }
+        const user = JSON.parse(storedUser);
+        const schoolId = user.schoolId;
+        if (!schoolId) {
+          setError('No school association found for user');
+          setLoading(false);
+          return;
+        }
+
+        const batchesList = await apiClient.get<any[]>(`/DrivingInstitutes/${schoolId}/batches`);
+        setBatches(batchesList);
+        if (batchesList.length > 0) {
+          setSelectedBatchId(batchesList[0].batchID.toString());
+        }
+      } catch (err: any) {
+        console.error(err);
+        setError(err.message || 'Failed to load batches');
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadInitialData();
   }, []);
+
+  useEffect(() => {
+    if (!selectedBatchId) return;
+
+    async function loadBatchStudents() {
+      setLoading(true);
+      setError('');
+      try {
+        const studentsList = await apiClient.get<any[]>(`/DrivingInstitutes/batches/${selectedBatchId}/students`);
+        const mapped = studentsList.map((std) => ({
+          studentId: std.applicationID.toString(),
+          studentName: std.fullName,
+          present: true,
+          late: false,
+        }));
+        setAttendance(mapped);
+      } catch (err: any) {
+        console.error(err);
+        setError(err.message || 'Failed to load students for batch');
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadBatchStudents();
+  }, [selectedBatchId]);
 
   const handleToggle = (studentId: string, type: 'present' | 'late') => {
     setAttendance((prev) =>
@@ -61,13 +107,43 @@ export default function AttendancePage() {
     );
   };
 
+  const handleSaveAttendance = async () => {
+    setError('');
+    setSuccessMsg('');
+    setSaving(true);
+    try {
+      const storedUser = localStorage.getItem('user');
+      const user = storedUser ? JSON.parse(storedUser) : null;
+      const userId = user ? parseInt(user.id) : 1;
+
+      await Promise.all(
+        attendance.map((entry) =>
+          apiClient.post('/DrivingInstitutes/attendance/mark', {
+            applicationID: parseInt(entry.studentId),
+            batchID: parseInt(selectedBatchId),
+            date: selectedDate,
+            isPresent: entry.present,
+            markedByUserID: userId,
+          })
+        )
+      );
+
+      setSuccessMsg('Attendance marked successfully!');
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || 'Failed to save attendance');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const stats = {
     present: attendance.filter((a) => a.present && !a.late).length,
     late: attendance.filter((a) => a.late).length,
     absent: attendance.filter((a) => !a.present).length,
   };
 
-  if (loading) {
+  if (loading && batches.length === 0) {
     return (
       <div className="p-8">
         <LoadingSkeleton type="table" count={1} />
@@ -88,7 +164,8 @@ export default function AttendancePage() {
         <div className="flex gap-3">
           <Button 
             onClick={handleMarkAllPresent}
-            className="gap-2 bg-gradient-to-r from-blue-400 to-cyan-600 text-white font-semibold hover:from-blue-500 hover:to-cyan-700"
+            disabled={attendance.length === 0}
+            className="gap-2 bg-gradient-to-r from-blue-400 to-cyan-600 text-white font-semibold hover:from-blue-500 hover:to-cyan-700 disabled:opacity-50"
           >
             <Check size={18} />
             Mark All Present
@@ -100,16 +177,45 @@ export default function AttendancePage() {
         </div>
       </div>
 
-      {/* Date Selector */}
-      <div className="flex items-center gap-4">
-        <label className="text-sm font-medium text-foreground">Select Date:</label>
-        <input
-          type="date"
-          value={selectedDate}
-          onChange={(e) => setSelectedDate(e.target.value)}
-          className="glass rounded-lg border border-slate-700/50 bg-slate-900/40 px-4 py-2 text-foreground"
-        />
+      {/* Selectors */}
+      <div className="flex flex-col gap-4 md:flex-row md:items-center">
+        <div className="flex items-center gap-4">
+          <label className="text-sm font-medium text-foreground">Select Batch:</label>
+          <select
+            value={selectedBatchId}
+            onChange={(e) => setSelectedBatchId(e.target.value)}
+            className="glass rounded-lg border border-slate-700/50 bg-slate-900/40 px-4 py-2 text-foreground"
+          >
+            {batches.map((b) => (
+              <option key={b.batchID} value={b.batchID}>
+                {b.batchName}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex items-center gap-4">
+          <label className="text-sm font-medium text-foreground">Select Date:</label>
+          <input
+            type="date"
+            value={selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value)}
+            className="glass rounded-lg border border-slate-700/50 bg-slate-900/40 px-4 py-2 text-foreground"
+          />
+        </div>
       </div>
+
+      {/* Messages */}
+      {error && (
+        <div className="rounded-lg bg-rose-500/20 p-4 text-rose-400 border border-rose-500/30">
+          {error}
+        </div>
+      )}
+      {successMsg && (
+        <div className="rounded-lg bg-emerald-500/20 p-4 text-emerald-400 border border-emerald-500/30">
+          {successMsg}
+        </div>
+      )}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -234,8 +340,19 @@ export default function AttendancePage() {
 
       {/* Save Button */}
       <div className="flex justify-end">
-        <Button className="gap-2 bg-gradient-to-r from-cyan-400 to-blue-600 text-white font-semibold hover:from-cyan-500 hover:to-blue-700">
-          Save Attendance
+        <Button 
+          onClick={handleSaveAttendance}
+          disabled={saving || attendance.length === 0}
+          className="gap-2 bg-gradient-to-r from-cyan-400 to-blue-600 text-white font-semibold hover:from-cyan-500 hover:to-blue-700 disabled:opacity-50"
+        >
+          {saving ? (
+            <>
+              <Loader2 size={18} className="animate-spin" />
+              Saving...
+            </>
+          ) : (
+            'Save Attendance'
+          )}
         </Button>
       </div>
     </div>

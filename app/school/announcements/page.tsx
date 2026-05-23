@@ -7,66 +7,98 @@ import { Input } from '@/components/ui/input';
 import LoadingSkeleton from '@/components/shared/LoadingSkeleton';
 import { Announcement } from '@/lib/types';
 
+import { apiClient } from '@/lib/api';
+
 export default function AnnouncementsPage() {
   const [loading, setLoading] = useState(true);
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [announcements, setAnnouncements] = useState<any[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [priority, setPriority] = useState<'low' | 'medium' | 'high'>('medium');
+  const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    setTimeout(() => {
-      setAnnouncements([
-        {
-          id: 'A001',
-          title: 'New Batch Intake Announcement',
-          content: 'We are proud to announce the opening of Batch D for the upcoming season. Registration is now open!',
+    async function loadAnnouncements() {
+      try {
+        const storedUser = localStorage.getItem('user');
+        if (!storedUser) {
+          setError('User not logged in');
+          setLoading(false);
+          return;
+        }
+        const user = JSON.parse(storedUser);
+        const schoolId = user.schoolId;
+        if (!schoolId) {
+          setError('No school association found for user');
+          setLoading(false);
+          return;
+        }
+
+        const data = await apiClient.get<any[]>(`/DrivingInstitutes/${schoolId}/announcements`);
+        const mapped = data.map((a) => ({
+          id: a.announcementID.toString(),
+          title: a.title,
+          content: a.content,
           createdBy: 'School Admin',
-          createdAt: '2024-05-20',
-          priority: 'high',
-          targetAudience: ['students', 'instructors'],
-        },
-        {
-          id: 'A002',
-          title: 'Maintenance Schedule Update',
-          content: 'Vehicle maintenance has been scheduled for May 25-26. Please coordinate with instructors for class adjustments.',
-          createdBy: 'School Admin',
-          createdAt: '2024-05-18',
+          createdAt: a.dateCreated.split('T')[0],
           priority: 'medium',
-          targetAudience: ['instructors'],
-        },
-        {
-          id: 'A003',
-          title: 'Exam Results Available',
-          content: 'Exam results for the February batch are now available. Please check your student portal.',
-          createdBy: 'School Admin',
-          createdAt: '2024-05-15',
-          priority: 'high',
-          targetAudience: ['students'],
-        },
-      ]);
-      setLoading(false);
-    }, 1000);
+          targetAudience: ['students', 'instructors'],
+        }));
+        setAnnouncements(mapped);
+      } catch (err: any) {
+        console.error(err);
+        setError(err.message || 'Failed to load announcements');
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadAnnouncements();
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (title && content) {
-      const newAnnouncement: Announcement = {
-        id: `A${Date.now()}`,
+    if (!title || !content) return;
+
+    setSubmitting(true);
+    setError('');
+    try {
+      const storedUser = localStorage.getItem('user');
+      const user = storedUser ? JSON.parse(storedUser) : null;
+      const schoolId = user ? parseInt(user.schoolId) : 1;
+      const userId = user ? parseInt(user.id) : 1;
+
+      await apiClient.post('/DrivingInstitutes/announcements', {
+        instituteID: schoolId,
+        batchID: null,
         title,
         content,
+        createdByUserID: userId,
+      });
+
+      // Reload
+      const data = await apiClient.get<any[]>(`/DrivingInstitutes/${schoolId}/announcements`);
+      const mapped = data.map((a) => ({
+        id: a.announcementID.toString(),
+        title: a.title,
+        content: a.content,
         createdBy: 'School Admin',
-        createdAt: new Date().toISOString().split('T')[0],
-        priority,
+        createdAt: a.dateCreated.split('T')[0],
+        priority: 'medium',
         targetAudience: ['students', 'instructors'],
-      };
-      setAnnouncements([newAnnouncement, ...announcements]);
+      }));
+      setAnnouncements(mapped);
+
       setTitle('');
       setContent('');
       setPriority('medium');
       setShowForm(false);
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || 'Failed to publish announcement.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -102,6 +134,12 @@ export default function AnnouncementsPage() {
           New Announcement
         </Button>
       </div>
+
+      {error && (
+        <div className="rounded-lg bg-rose-500/20 p-4 text-rose-400 border border-rose-500/30">
+          {error}
+        </div>
+      )}
 
       {/* Create Form */}
       {showForm && (

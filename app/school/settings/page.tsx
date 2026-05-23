@@ -6,25 +6,53 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import LoadingSkeleton from '@/components/shared/LoadingSkeleton';
 import { SchoolSettings } from '@/lib/types';
+import { apiClient } from '@/lib/api';
 
 export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [settings, setSettings] = useState<SchoolSettings | null>(null);
+  const [rawProfile, setRawProfile] = useState<any | null>(null);
   const [changed, setChanged] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   useEffect(() => {
-    setTimeout(() => {
-      setSettings({
-        schoolName: 'DVLD Training Academy',
-        address: '123 Main Street, City, Country',
-        phone: '+1 234 567 8900',
-        email: 'contact@dvld-academy.com',
-        licenseNumber: 'DL-2024-001',
-        operatingHours: 'Mon-Sun: 8:00 AM - 6:00 PM',
-        maxStudentsPerBatch: 30,
-      });
-      setLoading(false);
-    }, 1000);
+    async function loadSettings() {
+      try {
+        const storedUser = localStorage.getItem('user');
+        if (!storedUser) {
+          setError('User not logged in');
+          setLoading(false);
+          return;
+        }
+        const user = JSON.parse(storedUser);
+        const schoolId = user.schoolId;
+        if (!schoolId) {
+          setError('No school association found for user');
+          setLoading(false);
+          return;
+        }
+
+        const data = await apiClient.get<any>(`/DrivingInstitutes/${schoolId}`);
+        setRawProfile(data);
+        setSettings({
+          schoolName: data.instituteName || '',
+          address: data.address || '',
+          phone: data.phone || '',
+          email: data.email || '',
+          licenseNumber: data.commercialLicenseNo || '',
+          operatingHours: 'Mon-Sun: 8:00 AM - 6:00 PM',
+          maxStudentsPerBatch: data.capacity || 30,
+        });
+      } catch (err: any) {
+        console.error(err);
+        setError(err.message || 'Failed to load school settings');
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadSettings();
   }, []);
 
   const handleChange = (field: keyof SchoolSettings, value: any) => {
@@ -35,10 +63,38 @@ export default function SettingsPage() {
   };
 
   const handleSave = async () => {
-    // Simulate API call
-    console.log('Saving settings:', settings);
-    setChanged(false);
-    // Show success toast (would integrate with toast system)
+    if (!settings || !rawProfile) return;
+
+    setSaving(true);
+    setError('');
+    setSuccess('');
+    try {
+      const storedUser = localStorage.getItem('user');
+      const user = storedUser ? JSON.parse(storedUser) : null;
+      const schoolId = user?.schoolId;
+
+      await apiClient.put(`/DrivingInstitutes/${schoolId}`, {
+        instituteName: settings.schoolName,
+        address: settings.address,
+        phone: settings.phone,
+        email: settings.email,
+        commercialLicenseNo: settings.licenseNumber,
+        licenseExpiryDate: rawProfile.licenseExpiryDate || new Date().toISOString(),
+        managerName: rawProfile.managerName || 'Manager',
+        capacity: settings.maxStudentsPerBatch,
+        city: rawProfile.city || 'City',
+        region: rawProfile.region || 'Region',
+        isActive: rawProfile.isActive ?? true,
+      });
+
+      setSuccess('School settings updated successfully!');
+      setChanged(false);
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || 'Failed to save settings');
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (loading) {
@@ -60,6 +116,17 @@ export default function SettingsPage() {
           Manage your school information and configuration
         </p>
       </div>
+
+      {error && (
+        <div className="rounded-lg bg-rose-500/20 p-4 text-rose-400 border border-rose-500/30">
+          {error}
+        </div>
+      )}
+      {success && (
+        <div className="rounded-lg bg-emerald-500/20 p-4 text-emerald-400 border border-emerald-500/30">
+          {success}
+        </div>
+      )}
 
       {/* School Information */}
       <div className="glass rounded-lg border border-slate-800/50 p-8 space-y-6">

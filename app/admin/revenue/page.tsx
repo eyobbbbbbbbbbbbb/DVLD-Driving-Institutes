@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import StatusBadge from '@/components/shared/StatusBadge';
 import LoadingSkeleton from '@/components/shared/LoadingSkeleton';
+import { apiClient } from '@/lib/api';
 
 interface RevenueRecord {
   id: string;
@@ -22,74 +23,51 @@ export default function RevenuePage() {
   const [loading, setLoading] = useState(true);
   const [records, setRecords] = useState<RevenueRecord[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      setRecords([
-        {
-          id: '1',
-          school: 'DVLD Academy',
-          month: 'May 2024',
-          totalRevenue: 27400,
-          completedPayments: 24500,
-          pendingPayments: 2900,
-          studentsEnrolled: 245,
-          status: 'completed',
-        },
-        {
-          id: '2',
-          school: 'Elite Driving',
-          month: 'May 2024',
-          totalRevenue: 22850,
-          completedPayments: 20200,
-          pendingPayments: 2650,
-          studentsEnrolled: 156,
-          status: 'completed',
-        },
-        {
-          id: '3',
-          school: 'City Drivers',
-          month: 'May 2024',
-          totalRevenue: 19200,
-          completedPayments: 17800,
-          pendingPayments: 1400,
-          studentsEnrolled: 128,
-          status: 'completed',
-        },
-        {
-          id: '4',
-          school: 'Professional Driving',
-          month: 'May 2024',
-          totalRevenue: 18500,
-          completedPayments: 16200,
-          pendingPayments: 2300,
-          studentsEnrolled: 105,
-          status: 'pending',
-        },
-        {
-          id: '5',
-          school: 'Safety First',
-          month: 'May 2024',
-          totalRevenue: 12450,
-          completedPayments: 11200,
-          pendingPayments: 1250,
-          studentsEnrolled: 67,
-          status: 'completed',
-        },
-        {
-          id: '6',
-          school: 'DVLD Academy',
-          month: 'Apr 2024',
-          totalRevenue: 30000,
-          completedPayments: 27500,
-          pendingPayments: 2500,
-          studentsEnrolled: 215,
-          status: 'completed',
-        },
-      ]);
-      setLoading(false);
-    }, 1000);
+    async function loadRevenueData() {
+      try {
+        const schoolsList = await apiClient.get<any[]>('/DrivingInstitutes');
+
+        const recordsPromises = schoolsList.map(async (school) => {
+          try {
+            const statsData = await apiClient.get<any>(`/DrivingInstitutes/${school.instituteID}/stats`);
+            const totalRev = statsData.kpis?.totalEarnings || 0;
+            return {
+              id: school.instituteID.toString(),
+              school: school.instituteName,
+              month: new Date().toLocaleString('en-US', { month: 'short', year: 'numeric' }),
+              totalRevenue: totalRev,
+              completedPayments: totalRev,
+              pendingPayments: 0,
+              studentsEnrolled: statsData.kpis?.totalStudents || 0,
+              status: 'completed' as const,
+            };
+          } catch {
+            return {
+              id: school.instituteID.toString(),
+              school: school.instituteName,
+              month: new Date().toLocaleString('en-US', { month: 'short', year: 'numeric' }),
+              totalRevenue: 0,
+              completedPayments: 0,
+              pendingPayments: 0,
+              studentsEnrolled: 0,
+              status: 'completed' as const,
+            };
+          }
+        });
+
+        const resolvedRecords = await Promise.all(recordsPromises);
+        setRecords(resolvedRecords);
+      } catch (err: any) {
+        console.error(err);
+        setError(err.message || 'Failed to load revenue report.');
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadRevenueData();
   }, []);
 
   const filteredRecords = records.filter((record) => {

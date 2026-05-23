@@ -22,56 +22,39 @@ export default function LoginForm() {
     setLoading(true);
 
     try {
-      // Simulate API delay
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      const response = await apiClient.post<any>('/Auth/login', {
+        username: email,
+        password: password,
+      });
 
-      // Demo authentication - check for demo credentials
-      const demoCredentials = [
-        {
-          email: 'admin@dvld.com',
-          password: 'password123',
-          role: 'admin',
-          name: 'System Admin',
-        },
-        {
-          email: 'school@dvld.com',
-          password: 'password123',
-          role: 'school_admin',
-          name: 'School Admin',
-          schoolId: 'S001',
-        },
-        {
-          email: 'instructor@dvld.com',
-          password: 'password123',
-          role: 'instructor',
-          name: 'Instructor',
-          schoolId: 'S001',
-        },
-      ];
-
-      const validUser = demoCredentials.find(
-        (cred) => cred.email === email && cred.password === password
-      );
-
-      if (!validUser) {
-        setError('Invalid email or password. Try admin@dvld.com / password123');
+      if (!response || !response.token) {
+        setError('Invalid credentials.');
         setLoading(false);
         return;
       }
 
-      // Create demo token and user data
-      const token = `demo-token-${Date.now()}`;
+      // Map roles
+      let mappedRole: 'admin' | 'school_admin' | 'instructor' | 'student' = 'student';
+      if (response.role === 'SystemAdmin') {
+        mappedRole = 'admin';
+      } else if (response.role === 'InstituteManager') {
+        mappedRole = 'school_admin';
+      } else if (response.role === 'InstituteInstructor') {
+        mappedRole = 'instructor';
+      }
+
       const user = {
-        id: `user-${validUser.email}`,
-        email: validUser.email,
-        name: validUser.name,
-        role: validUser.role,
-        schoolId: validUser.schoolId || 'S001',
+        id: response.userID.toString(),
+        personId: response.personID.toString(),
+        email: email,
+        name: response.fullName,
+        role: mappedRole,
+        schoolId: response.instituteID?.toString() || undefined,
         createdAt: new Date().toISOString(),
       };
 
       // Save token and user data
-      localStorage.setItem('token', token);
+      localStorage.setItem('token', response.token);
       localStorage.setItem('user', JSON.stringify(user));
 
       // Redirect based on role
@@ -81,7 +64,7 @@ export default function LoginForm() {
         router.push('/school/dashboard');
       }
     } catch (err: any) {
-      setError('Login failed. Please try again.');
+      setError(err.message || 'Login failed. Please check your credentials.');
       console.error('Login error:', err);
     } finally {
       setLoading(false);

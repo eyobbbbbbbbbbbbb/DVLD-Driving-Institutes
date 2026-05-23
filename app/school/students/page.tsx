@@ -8,75 +8,53 @@ import { Input } from '@/components/ui/input';
 import StatusBadge from '@/components/shared/StatusBadge';
 import LoadingSkeleton from '@/components/shared/LoadingSkeleton';
 import { Student } from '@/lib/types';
+import { apiClient } from '@/lib/api';
 
 export default function StudentsPage() {
   const [loading, setLoading] = useState(true);
   const [students, setStudents] = useState<Student[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      setStudents([
-        {
-          id: '1',
-          name: 'Ahmed Hassan',
-          email: 'ahmed@email.com',
-          phone: '+1 234 567 8900',
-          enrollmentDate: '2024-01-15',
-          status: 'active',
-          progress: 75,
-          batchId: 'B001',
-          currentLevel: 2,
-        },
-        {
-          id: '2',
-          name: 'Sara Johnson',
-          email: 'sara@email.com',
-          phone: '+1 234 567 8901',
-          enrollmentDate: '2024-02-01',
-          status: 'active',
-          progress: 60,
-          batchId: 'B002',
-          currentLevel: 2,
-        },
-        {
-          id: '3',
-          name: 'Mohamed Ali',
-          email: 'mohamed@email.com',
-          phone: '+1 234 567 8902',
-          enrollmentDate: '2023-12-10',
-          status: 'completed',
-          progress: 100,
-          batchId: 'B001',
-          currentLevel: 3,
-        },
-        {
-          id: '4',
-          name: 'Fatima Khan',
-          email: 'fatima@email.com',
-          phone: '+1 234 567 8903',
-          enrollmentDate: '2024-03-05',
-          status: 'active',
-          progress: 45,
-          batchId: 'B003',
+    async function loadStudents() {
+      try {
+        const storedUser = localStorage.getItem('user');
+        if (!storedUser) {
+          setError('User not logged in');
+          setLoading(false);
+          return;
+        }
+        const user = JSON.parse(storedUser);
+        const schoolId = user.schoolId;
+        if (!schoolId) {
+          setError('No school association found for user');
+          setLoading(false);
+          return;
+        }
+
+        const data = await apiClient.get<any[]>(`/DrivingInstitutes/${schoolId}/students`);
+        const mapped = data.map((std) => ({
+          id: std.enrollmentID.toString(),
+          name: std.fullName || 'Unknown Student',
+          email: std.email || `${(std.fullName || 'student').replace(/\s+/g, '').toLowerCase()}@email.com`,
+          phone: std.phone || 'N/A',
+          enrollmentDate: std.enrollmentDate,
+          status: std.isActive ? ('active' as const) : ('completed' as const),
+          progress: std.isActive ? 75 : 100,
+          batchId: 'N/A',
           currentLevel: 1,
-        },
-        {
-          id: '5',
-          name: 'Omar Sheikh',
-          email: 'omar@email.com',
-          phone: '+1 234 567 8904',
-          enrollmentDate: '2024-01-20',
-          status: 'suspended',
-          progress: 30,
-          batchId: 'B002',
-          currentLevel: 1,
-        },
-      ]);
-      setLoading(false);
-    }, 1000);
+        }));
+        setStudents(mapped);
+      } catch (err: any) {
+        console.error(err);
+        setError(err.message || 'Failed to load students');
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadStudents();
   }, []);
 
   const filteredStudents = students.filter((student) => {
