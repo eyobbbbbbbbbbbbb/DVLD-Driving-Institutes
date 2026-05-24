@@ -123,6 +123,7 @@ export default function AttendancePage() {
             batchID: parseInt(selectedBatchId),
             date: selectedDate,
             isPresent: entry.present,
+            isLate: entry.late,
             markedByUserID: userId,
           })
         )

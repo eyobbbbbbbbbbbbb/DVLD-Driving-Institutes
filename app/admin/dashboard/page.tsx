@@ -167,7 +167,7 @@ export default function AdminDashboard() {
                   border: '1px solid #374151',
                   borderRadius: '8px',
                 }}
-                textStyle={{ color: '#e5e7eb' }}
+                labelStyle={{ color: '#e5e7eb' }}
               />
               <Bar dataKey="revenue" fill="#2563eb" radius={[8, 8, 0, 0]} />
             </BarChart>
@@ -201,7 +201,7 @@ export default function AdminDashboard() {
                   border: '1px solid #374151',
                   borderRadius: '8px',
                 }}
-                textStyle={{ color: '#e5e7eb' }}
+                labelStyle={{ color: '#e5e7eb' }}
               />
             </PieChart>
           </ResponsiveContainer>
