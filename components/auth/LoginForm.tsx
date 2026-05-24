@@ -10,7 +10,7 @@ import { Eye, EyeOff, Loader2 } from 'lucide-react';
 
 export default function LoginForm() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -23,7 +23,7 @@ export default function LoginForm() {
 
     try {
       const response = await apiClient.post<any>('/Auth/login', {
-        username: email,
+        username: username,
         password: password,
       });
 
@@ -34,19 +34,21 @@ export default function LoginForm() {
       }
 
       // Map roles
-      let mappedRole: 'admin' | 'school_admin' | 'instructor' | 'student' = 'student';
+      let mappedRole: 'admin' | 'school_admin' | 'instructor' | 'student' | 'officer' = 'student';
       if (response.role === 'SystemAdmin') {
         mappedRole = 'admin';
       } else if (response.role === 'InstituteManager') {
         mappedRole = 'school_admin';
       } else if (response.role === 'InstituteInstructor') {
         mappedRole = 'instructor';
+      } else if (response.role === 'Officer') {
+        mappedRole = 'officer';
       }
 
       const user = {
         id: response.userID.toString(),
         personId: response.personID.toString(),
-        email: email,
+        email: username, // Fallback for stored field
         name: response.fullName,
         role: mappedRole,
         schoolId: response.instituteID?.toString() || undefined,
@@ -89,17 +91,17 @@ export default function LoginForm() {
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Email Input */}
+          {/* Username Input */}
           <div className="space-y-2">
-            <label htmlFor="email" className="block text-sm font-medium text-foreground">
-              Email Address
+            <label htmlFor="username" className="block text-sm font-medium text-foreground">
+              Username or Email
             </label>
             <Input
-              id="email"
-              type="email"
-              placeholder="your@email.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              id="username"
+              type="text"
+              placeholder="your_username or your@email.com"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
               disabled={loading}
               required
               className="glass border-slate-700/50 bg-slate-900/40 text-foreground placeholder:text-muted-foreground"
@@ -143,7 +145,7 @@ export default function LoginForm() {
           {/* Submit Button */}
           <Button
             type="submit"
-            disabled={loading || !email || !password}
+            disabled={loading || !username || !password}
             className="w-full bg-gradient-to-r from-cyan-400 to-blue-600 text-white font-semibold hover:from-cyan-500 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? (
@@ -162,15 +164,15 @@ export default function LoginForm() {
           <p className="font-semibold text-foreground">Demo Accounts:</p>
           <div className="space-y-2 rounded-lg bg-slate-800/50 p-3">
             <div>
-              <p className="text-cyan-400 font-mono">admin@dvld.com</p>
+              <p className="text-cyan-400 font-mono">admin</p>
               <p className="text-xs text-muted-foreground">System Admin Dashboard</p>
             </div>
             <div className="border-t border-slate-700/50 pt-2">
-              <p className="text-cyan-400 font-mono">school@dvld.com</p>
+              <p className="text-cyan-400 font-mono">school_manager</p>
               <p className="text-xs text-muted-foreground">School Admin Dashboard</p>
             </div>
             <div className="border-t border-slate-700/50 pt-2">
-              <p className="text-cyan-400 font-mono">instructor@dvld.com</p>
+              <p className="text-cyan-400 font-mono">instructor_user</p>
               <p className="text-xs text-muted-foreground">Instructor Dashboard</p>
             </div>
             <p className="border-t border-slate-700/50 pt-2 font-mono text-muted-foreground">Password: password123</p>

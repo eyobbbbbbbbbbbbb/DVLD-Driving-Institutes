@@ -103,18 +103,21 @@ export default function PaymentsPage() {
         <KPICard
           title="Total Revenue"
           value={`$${totals.total.toLocaleString()}`}
+          description={`School (85%): $${(totals.total * 0.85).toLocaleString(undefined, { maximumFractionDigits: 2 })} / DVLD (15%): $${(totals.total * 0.15).toLocaleString(undefined, { maximumFractionDigits: 2 })}`}
           icon={<DollarSign size={24} />}
           color="emerald"
         />
         <KPICard
           title="Completed"
           value={`$${totals.completed.toLocaleString()}`}
+          description={`School (85%): $${(totals.completed * 0.85).toLocaleString(undefined, { maximumFractionDigits: 2 })} / DVLD (15%): $${(totals.completed * 0.15).toLocaleString(undefined, { maximumFractionDigits: 2 })}`}
           icon={<DollarSign size={24} />}
           color="cyan"
         />
         <KPICard
           title="Pending"
           value={`$${totals.pending.toLocaleString()}`}
+          description={`School (85%): $${(totals.pending * 0.85).toLocaleString(undefined, { maximumFractionDigits: 2 })} / DVLD (15%): $${(totals.pending * 0.15).toLocaleString(undefined, { maximumFractionDigits: 2 })}`}
           icon={<DollarSign size={24} />}
           color="amber"
         />
@@ -155,7 +158,13 @@ export default function PaymentsPage() {
                   Student
                 </th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-muted-foreground">
-                  Amount
+                  Total Paid
+                </th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-muted-foreground">
+                  School Share (85%)
+                </th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-muted-foreground">
+                  DVLD Share (15%)
                 </th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-muted-foreground">
                   Description
@@ -172,31 +181,41 @@ export default function PaymentsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/50">
-              {filteredPayments.map((payment) => (
-                <tr
-                  key={payment.id}
-                  className="transition-colors hover:bg-slate-800/30"
-                >
-                  <td className="px-6 py-4 font-medium text-foreground">
-                    {payment.studentName}
-                  </td>
-                  <td className="px-6 py-4 font-semibold text-emerald-400">
-                    ${payment.amount}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-foreground">
-                    {payment.description}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-foreground">
-                    {new Date(payment.date).toLocaleDateString()}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-muted-foreground">
-                    {payment.paymentMethod}
-                  </td>
-                  <td className="px-6 py-4">
-                    <StatusBadge status={payment.status} />
-                  </td>
-                </tr>
-              ))}
+              {filteredPayments.map((payment) => {
+                const schoolShare = payment.amount * 0.85;
+                const dvldShare = payment.amount * 0.15;
+                return (
+                  <tr
+                    key={payment.id}
+                    className="transition-colors hover:bg-slate-800/30"
+                  >
+                    <td className="px-6 py-4 font-medium text-foreground">
+                      {payment.studentName}
+                    </td>
+                    <td className="px-6 py-4 font-semibold text-foreground">
+                      ${payment.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </td>
+                    <td className="px-6 py-4 font-semibold text-emerald-400">
+                      ${schoolShare.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </td>
+                    <td className="px-6 py-4 font-semibold text-cyan-400">
+                      ${dvldShare.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-foreground">
+                      {payment.description}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-foreground">
+                      {new Date(payment.date).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-muted-foreground">
+                      {payment.paymentMethod}
+                    </td>
+                    <td className="px-6 py-4">
+                      <StatusBadge status={payment.status} />
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
