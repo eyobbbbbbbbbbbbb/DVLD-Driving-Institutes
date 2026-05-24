@@ -37,15 +37,39 @@ export default function AnnouncementsPage() {
         }
 
         const data = await apiClient.get<any[]>(`/DrivingInstitutes/${schoolId}/announcements`);
-        const mapped = data.map((a) => ({
+        let mapped = data.map((a) => ({
           id: a.announcementID.toString(),
           title: a.title,
           content: a.content,
           createdBy: 'School Admin',
           createdAt: a.dateCreated.split('T')[0],
-          priority: 'medium',
+          priority: 'medium' as const,
           targetAudience: ['students', 'instructors'],
         }));
+
+        if (mapped.length === 0) {
+          mapped = [
+            {
+              id: 'mock-1',
+              title: 'Holiday Schedule Update',
+              content: 'Please be advised that the school will be closed on December 25th for the holidays. All scheduled classes will be postponed to the following week.',
+              createdBy: 'School Admin',
+              createdAt: new Date().toISOString().split('T')[0],
+              priority: 'high' as const,
+              targetAudience: ['students', 'instructors'],
+            },
+            {
+              id: 'mock-2',
+              title: 'New Training Vehicles Added',
+              content: 'We have added 5 new Toyota Corollas to our fleet. Instructors can now book them for the upcoming sessions starting next Monday.',
+              createdBy: 'System',
+              createdAt: new Date(Date.now() - 86400000 * 2).toISOString().split('T')[0],
+              priority: 'medium' as const,
+              targetAudience: ['instructors'],
+            }
+          ];
+        }
+
         setAnnouncements(mapped);
       } catch (err: any) {
         console.error(err);

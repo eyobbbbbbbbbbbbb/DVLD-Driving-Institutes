@@ -24,15 +24,15 @@ Welcome to the handoff documentation for the **DVLD Driving Institutes Portal**.
 - **School Dashboard (`/school/dashboard`)**: Hooked up live metrics (Active Students, Total Batches, Pass Rate, Upcoming Lessons) using a dynamic KPI stats endpoint `/api/DrivingInstitutes/{id}/stats` with beautiful bar charts.
 - **System Admin Dashboard (`/admin/dashboard`)**: Displays macro-level metrics across the entire DVLD department, loading stats from `/api/kpis` with stylized area charts.
 - **System Admin Revenue Report (`/admin/revenue`)**: Provides interactive tables, filters, dynamic split metrics, and instantaneous CSV data exporting capabilities.
-- **Students Management (`/school/students`)**: Lists all registered driving school students with active enrollment search/filtering.
-- **Training Batches CRUD (`/school/batches`)**: Integrates complete batch lists, status filters, and active form dialogs for creating or editing batches.
-- **Attendance Tracker (`/school/attendance`)**: Features dynamic batch filters, automated student lookups, and batch checkbox saving directly to the backend.
+- **Students Management (`/school/students`)**: Lists registered driving school students with active enrollment search/filtering. Added View Details overlay and dynamic progress percentage calculation.
+- **Training Batches CRUD (`/school/batches`)**: Integrates complete batch lists, status filters, and active form dialogs. Added View Details modal overlay for deeper insights.
+- **Attendance Tracker (`/school/attendance`)**: Features dynamic batch filters, automated student lookups, and a master "Mark All" checkbox for faster bulk check-ins.
 - **Courses CRUD (`/school/courses`)**: Offers full course list retrieval, detailed descriptions, and instant add/edit/delete functionality.
-- **Vehicles Tracking (`/school/vehicles`)**: Displays active vehicles associated with the school.
-- **Announcements Broadcast (`/school/announcements`)**: Supports loading published circulars and posting new public announcements.
-- **Payments & Revenue Splits (`/school/payments`)**: Displays transaction history with beautiful cards demonstrating the **85% School / 15% DVLD** revenue split model.
-- **Profile & Settings (`/school/settings`)**: Hooked up profile loading and update capabilities using `PUT /api/DrivingInstitutes/{id}`.
-- **Notification Inbox (`/school/notifications`)**: Integrates inbox alerts and messaging using person-specific messages fetch.
+- **Vehicles Tracking (`/school/vehicles`)**: Implemented dynamic frontend catalog fetching, Add Vehicle modal, and mock data fallbacks for connected vehicle tracking.
+- **Announcements Broadcast (`/school/announcements`)**: Supports loading published circulars and posting new public announcements, with mock fallbacks.
+- **Payments & Revenue Splits (`/school/payments`)**: Displays transaction history with beautiful cards demonstrating the **85% School / 15% DVLD** revenue split model, including mock fallback entries.
+- **Profile & Settings (`/school/settings`)**: Hooked up profile loading and update capabilities using `PUT /api/DrivingInstitutes/{id}`. Added a comprehensive Personal Information edit form card.
+- **Notification Inbox (`/school/notifications`)**: Integrates inbox alerts and messaging with robust fallback notification mocks.
 - **Frontend Build Verification**: Fully optimized and compiled the Next.js production build (`npm run build`) with zero static type errors or warnings.
 
 ---

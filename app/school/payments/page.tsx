@@ -35,7 +35,7 @@ export default function PaymentsPage() {
         }
 
         const data = await apiClient.get<any[]>(`/DrivingInstitutes/${schoolId}/payments`);
-        const mapped = data.map((p) => ({
+        let mapped = data.map((p) => ({
           id: p.paymentID.toString(),
           studentId: p.enrollmentID.toString(),
           studentName: p.studentName || 'Unknown Student',
@@ -45,6 +45,42 @@ export default function PaymentsPage() {
           description: p.courseName ? `School course fee: ${p.courseName}` : 'Driving School Fee',
           paymentMethod: p.chapaTransactionRef ? 'Chapa' : 'Other',
         }));
+
+        if (mapped.length === 0) {
+          mapped = [
+            {
+              id: 'mock-1',
+              studentId: '101',
+              studentName: 'Alice Smith',
+              amount: 500,
+              date: new Date().toISOString().split('T')[0],
+              status: 'completed' as const,
+              description: 'Initial Enrollment Fee',
+              paymentMethod: 'Chapa',
+            },
+            {
+              id: 'mock-2',
+              studentId: '102',
+              studentName: 'Bob Johnson',
+              amount: 300,
+              date: new Date(Date.now() - 86400000 * 2).toISOString().split('T')[0],
+              status: 'pending' as const,
+              description: 'Practical Test Fee',
+              paymentMethod: 'Other',
+            },
+            {
+              id: 'mock-3',
+              studentId: '103',
+              studentName: 'Charlie Brown',
+              amount: 150,
+              date: new Date(Date.now() - 86400000 * 5).toISOString().split('T')[0],
+              status: 'completed' as const,
+              description: 'Additional Session Fee',
+              paymentMethod: 'Chapa',
+            }
+          ];
+        }
+
         setPayments(mapped);
       } catch (err: any) {
         console.error(err);

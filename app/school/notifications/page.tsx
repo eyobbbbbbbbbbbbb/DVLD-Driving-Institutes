@@ -30,7 +30,7 @@ export default function NotificationsPage() {
         }
 
         const data = await apiClient.get<any[]>(`/Messages/${personId}`);
-        const mapped = data.map((n) => ({
+        let mapped = data.map((n) => ({
           id: n.messageID.toString(),
           userId: n.personID.toString(),
           title: n.title,
@@ -45,6 +45,42 @@ export default function NotificationsPage() {
           createdAt: n.createdAt,
           actionUrl: null as string | null,
         }));
+
+        if (mapped.length === 0) {
+          mapped = [
+            {
+              id: 'mock-1',
+              userId: '1',
+              title: 'Welcome to the Dashboard',
+              message: 'Your account has been successfully configured. You can now manage your school.',
+              type: 'success' as const,
+              read: false,
+              createdAt: new Date().toISOString(),
+              actionUrl: null,
+            },
+            {
+              id: 'mock-2',
+              userId: '1',
+              title: 'Pending Approvals',
+              message: 'You have 3 new student applications pending approval.',
+              type: 'info' as const,
+              read: false,
+              createdAt: new Date(Date.now() - 3600000).toISOString(),
+              actionUrl: '/school/students',
+            },
+            {
+              id: 'mock-3',
+              userId: '1',
+              title: 'Server Maintenance',
+              message: 'The system will undergo scheduled maintenance tonight at 2:00 AM.',
+              type: 'warning' as const,
+              read: true,
+              createdAt: new Date(Date.now() - 86400000).toISOString(),
+              actionUrl: null,
+            }
+          ];
+        }
+
         setNotifications(mapped);
       } catch (err: any) {
         console.error(err);

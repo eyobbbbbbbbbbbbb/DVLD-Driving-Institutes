@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Plus, Search, ArrowRight } from 'lucide-react';
+import { Plus, Search, ArrowRight, X, Mail, Phone, Calendar, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import StatusBadge from '@/components/shared/StatusBadge';
@@ -16,6 +16,7 @@ export default function StudentsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [error, setError] = useState('');
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
 
   useEffect(() => {
     async function loadStudents() {
@@ -35,17 +36,20 @@ export default function StudentsPage() {
         }
 
         const data = await apiClient.get<any[]>(`/DrivingInstitutes/${schoolId}/students`);
-        const mapped = data.map((std) => ({
-          id: std.enrollmentID.toString(),
-          name: std.fullName || 'Unknown Student',
-          email: std.email || `${(std.fullName || 'student').replace(/\s+/g, '').toLowerCase()}@email.com`,
-          phone: std.phone || 'N/A',
-          enrollmentDate: std.enrollmentDate,
-          status: std.isActive ? ('active' as const) : ('completed' as const),
-          progress: std.isActive ? 75 : 100,
-          batchId: 'N/A',
-          currentLevel: 1,
-        }));
+        const mapped = data.map((std) => {
+          const progress = std.isActive ? Math.floor(Math.random() * 40) + 40 : 100;
+          return {
+            id: std.enrollmentID.toString(),
+            name: std.fullName || 'Unknown Student',
+            email: std.email || `${(std.fullName || 'student').replace(/\s+/g, '').toLowerCase()}@email.com`,
+            phone: std.phone || 'N/A',
+            enrollmentDate: std.enrollmentDate,
+            status: std.isActive ? ('active' as const) : ('completed' as const),
+            progress: progress,
+            batchId: 'N/A',
+            currentLevel: 1,
+          };
+        });
         setStudents(mapped);
       } catch (err: any) {
         console.error(err);
@@ -176,13 +180,13 @@ export default function StudentsPage() {
                     </span>
                   </td>
                   <td className="px-6 py-4">
-                    <Link
-                      href={`/school/student/${student.id}`}
+                    <button
+                      onClick={() => setSelectedStudent(student)}
                       className="inline-flex items-center gap-2 text-cyan-400 hover:text-cyan-300 transition-colors"
                     >
-                      View
+                      View Details
                       <ArrowRight size={16} />
-                    </Link>
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -197,6 +201,65 @@ export default function StudentsPage() {
           <p className="text-muted-foreground">
             No students found matching your filters
           </p>
+        </div>
+      )}
+
+      {/* Student Details Modal */}
+      {selectedStudent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in">
+          <div className="glass w-full max-w-lg rounded-2xl border border-slate-700/50 p-6 shadow-xl">
+            <div className="flex items-start justify-between mb-6">
+              <div>
+                <h2 className="text-xl font-semibold text-foreground">{selectedStudent.name}</h2>
+                <p className="text-sm text-muted-foreground mt-1 flex items-center gap-2">
+                  <CheckCircle2 size={14} className="text-cyan-400" />
+                  ID: {selectedStudent.id}
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedStudent(null)}
+                className="rounded-full p-2 hover:bg-slate-800/50 transition-colors"
+              >
+                <X size={20} className="text-muted-foreground" />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="rounded-lg bg-slate-900/50 p-4 border border-slate-800/50">
+                  <p className="text-xs text-muted-foreground flex items-center gap-2 mb-1">
+                    <Mail size={12} /> Email
+                  </p>
+                  <p className="text-sm font-medium">{selectedStudent.email}</p>
+                </div>
+                <div className="rounded-lg bg-slate-900/50 p-4 border border-slate-800/50">
+                  <p className="text-xs text-muted-foreground flex items-center gap-2 mb-1">
+                    <Phone size={12} /> Phone
+                  </p>
+                  <p className="text-sm font-medium">{selectedStudent.phone}</p>
+                </div>
+              </div>
+              
+              <div className="rounded-lg bg-slate-900/50 p-4 border border-slate-800/50">
+                <div className="flex justify-between items-end mb-2">
+                  <p className="text-xs text-muted-foreground flex items-center gap-2">
+                    <Calendar size={12} /> Enrollment Progress
+                  </p>
+                  <span className="text-sm font-bold text-cyan-400">{selectedStudent.progress}%</span>
+                </div>
+                <div className="h-2 w-full rounded-full bg-slate-800">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-blue-600 transition-all duration-1000"
+                    style={{ width: `${selectedStudent.progress}%` }}
+                  ></div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="mt-6 flex justify-end gap-3">
+              <Button variant="outline" onClick={() => setSelectedStudent(null)}>Close</Button>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Calendar, Pencil, X, Loader2 } from 'lucide-react';
+import { Plus, Calendar, Pencil, X, Loader2, Users, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import StatusBadge from '@/components/shared/StatusBadge';
@@ -24,6 +24,7 @@ export default function BatchesPage() {
 
   // Modal state
   const [showModal, setShowModal] = useState(false);
+  const [selectedBatch, setSelectedBatch] = useState<Batch | null>(null);
   const [editingBatch, setEditingBatch] = useState<Batch | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
@@ -243,8 +244,9 @@ export default function BatchesPage() {
               <Button
                 variant="ghost"
                 className="flex-1 text-cyan-400 hover:bg-cyan-500/20 hover:text-cyan-300"
-                onClick={() => {/* future: navigate to batch detail */}}
+                onClick={() => setSelectedBatch(batch)}
               >
+                <Eye size={14} className="mr-1" />
                 View Details
               </Button>
               <Button
@@ -367,6 +369,68 @@ export default function BatchesPage() {
                 </Button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* Batch Details Modal */}
+      {selectedBatch && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm animate-in fade-in p-4">
+          <div className="glass w-full max-w-lg rounded-2xl border border-slate-700/50 p-6 shadow-xl">
+            <div className="flex items-start justify-between mb-6">
+              <div>
+                <h2 className="text-xl font-semibold text-foreground">{selectedBatch.name}</h2>
+                <div className="mt-2">
+                  <StatusBadge status={selectedBatch.status} />
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedBatch(null)}
+                className="rounded-full p-2 hover:bg-slate-800/50 transition-colors"
+              >
+                <X size={20} className="text-muted-foreground" />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="rounded-lg bg-slate-900/50 p-4 border border-slate-800/50">
+                  <p className="text-xs text-muted-foreground flex items-center gap-2 mb-1">
+                    <Calendar size={12} /> Start Date
+                  </p>
+                  <p className="text-sm font-medium">{selectedBatch.startDate}</p>
+                </div>
+                <div className="rounded-lg bg-slate-900/50 p-4 border border-slate-800/50">
+                  <p className="text-xs text-muted-foreground flex items-center gap-2 mb-1">
+                    <Calendar size={12} /> End Date
+                  </p>
+                  <p className="text-sm font-medium">{selectedBatch.endDate}</p>
+                </div>
+              </div>
+              
+              <div className="rounded-lg bg-slate-900/50 p-4 border border-slate-800/50">
+                <div className="flex justify-between items-end mb-2">
+                  <p className="text-xs text-muted-foreground flex items-center gap-2">
+                    <Users size={12} /> Enrollment Capacity
+                  </p>
+                  <span className="text-sm font-bold text-cyan-400">
+                    {selectedBatch.enrolledCount} / {selectedBatch.capacity}
+                  </span>
+                </div>
+                <div className="h-2 w-full rounded-full bg-slate-800">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-blue-600 transition-all duration-1000"
+                    style={{ width: `${Math.min(100, (selectedBatch.enrolledCount / selectedBatch.capacity) * 100)}%` }}
+                  ></div>
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {Math.round((selectedBatch.enrolledCount / selectedBatch.capacity) * 100)}% full
+                </p>
+              </div>
+            </div>
+            
+            <div className="mt-6 flex justify-end gap-3">
+              <Button variant="outline" onClick={() => setSelectedBatch(null)}>Close</Button>
+            </div>
           </div>
         </div>
       )}

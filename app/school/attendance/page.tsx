@@ -266,7 +266,19 @@ export default function AttendancePage() {
                   Student Name
                 </th>
                 <th className="px-6 py-4 text-center text-sm font-semibold text-muted-foreground">
-                  Present
+                  <div className="flex items-center justify-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={attendance.length > 0 && attendance.every(a => a.present)}
+                      onChange={(e) => {
+                        const isChecked = e.target.checked;
+                        setAttendance(prev => prev.map(a => ({ ...a, present: isChecked, late: false })));
+                      }}
+                      className="h-4 w-4 rounded border-slate-700 bg-slate-900/50 text-cyan-500 focus:ring-cyan-500 focus:ring-offset-slate-950"
+                      title="Mark all present"
+                    />
+                    Present
+                  </div>
                 </th>
                 <th className="px-6 py-4 text-center text-sm font-semibold text-muted-foreground">
                   Late

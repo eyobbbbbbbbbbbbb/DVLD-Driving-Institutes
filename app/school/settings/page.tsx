@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Save, Mail, Phone, MapPin } from 'lucide-react';
+import { Save, Mail, Phone, MapPin, User as UserIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import LoadingSkeleton from '@/components/shared/LoadingSkeleton';
@@ -12,6 +12,15 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [settings, setSettings] = useState<SchoolSettings | null>(null);
   const [rawProfile, setRawProfile] = useState<any | null>(null);
+  
+  // Person info
+  const [personId, setPersonId] = useState<number | null>(null);
+  const [personInfo, setPersonInfo] = useState({ firstName: '', lastName: '', phone: '', email: '', address: '' });
+  const [personChanged, setPersonChanged] = useState(false);
+  const [personSaving, setPersonSaving] = useState(false);
+  const [personSuccess, setPersonSuccess] = useState('');
+  const [personError, setPersonError] = useState('');
+
   const [changed, setChanged] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -45,6 +54,23 @@ export default function SettingsPage() {
           operatingHours: 'Mon-Sun: 8:00 AM - 6:00 PM',
           maxStudentsPerBatch: data.capacity || 30,
         });
+
+        // Load Person Info
+        if (user.personId) {
+          setPersonId(parseInt(user.personId));
+          try {
+            const pData = await apiClient.get<any>(`/People/${user.personId}`);
+            setPersonInfo({
+              firstName: pData.firstName || '',
+              lastName: pData.lastName || '',
+              phone: pData.phone || '',
+              email: pData.email || '',
+              address: pData.address || ''
+            });
+          } catch (pErr) {
+            console.error('Failed to load person info', pErr);
+          }
+        }
       } catch (err: any) {
         console.error(err);
         setError(err.message || 'Failed to load school settings');
@@ -94,6 +120,32 @@ export default function SettingsPage() {
       setError(err.message || 'Failed to save settings');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handlePersonChange = (field: string, value: string) => {
+    setPersonInfo(prev => ({ ...prev, [field]: value }));
+    setPersonChanged(true);
+  };
+
+  const handleSavePersonInfo = async () => {
+    if (!personId) return;
+    setPersonSaving(true);
+    setPersonError('');
+    setPersonSuccess('');
+    try {
+      await apiClient.put(`/People/${personId}/profile`, {
+        phone: personInfo.phone,
+        email: personInfo.email,
+        address: personInfo.address
+      });
+      setPersonSuccess('Personal information updated successfully!');
+      setPersonChanged(false);
+    } catch (err: any) {
+      console.error(err);
+      setPersonError(err.message || 'Failed to save personal info');
+    } finally {
+      setPersonSaving(false);
     }
   };
 
@@ -240,6 +292,85 @@ export default function SettingsPage() {
           </div>
         </div>
       </div>
+
+      {/* Personal Information */}
+      {personId && (
+        <div className="glass rounded-lg border border-slate-800/50 p-8 space-y-6">
+          <div>
+            <h2 className="text-xl font-semibold text-foreground mb-6 flex items-center gap-2">
+              <UserIcon size={20} className="text-cyan-400" />
+              Personal Information
+            </h2>
+
+            {personError && (
+              <div className="mb-4 rounded-lg bg-rose-500/20 p-4 text-rose-400 border border-rose-500/30">
+                {personError}
+              </div>
+            )}
+            {personSuccess && (
+              <div className="mb-4 rounded-lg bg-emerald-500/20 p-4 text-emerald-400 border border-emerald-500/30">
+                {personSuccess}
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">First Name</label>
+                <Input value={personInfo.firstName} disabled className="glass border-slate-700/50 bg-slate-900/80 text-muted-foreground" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">Last Name</label>
+                <Input value={personInfo.lastName} disabled className="glass border-slate-700/50 bg-slate-900/80 text-muted-foreground" />
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-foreground mb-2 flex items-center gap-2">
+                <Phone size={16} /> Phone
+              </label>
+              <Input
+                value={personInfo.phone}
+                onChange={(e) => handlePersonChange('phone', e.target.value)}
+                className="glass border-slate-700/50 bg-slate-900/40 text-foreground"
+              />
+            </div>
+
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-foreground mb-2 flex items-center gap-2">
+                <Mail size={16} /> Email
+              </label>
+              <Input
+                value={personInfo.email}
+                onChange={(e) => handlePersonChange('email', e.target.value)}
+                type="email"
+                className="glass border-slate-700/50 bg-slate-900/40 text-foreground"
+              />
+            </div>
+
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-foreground mb-2 flex items-center gap-2">
+                <MapPin size={16} /> Address
+              </label>
+              <Input
+                value={personInfo.address}
+                onChange={(e) => handlePersonChange('address', e.target.value)}
+                className="glass border-slate-700/50 bg-slate-900/40 text-foreground"
+              />
+            </div>
+
+            <div className="flex justify-end mt-4">
+              <Button
+                onClick={handleSavePersonInfo}
+                disabled={!personChanged || personSaving}
+                className="gap-2 bg-gradient-to-r from-cyan-400 to-blue-600 text-white font-semibold hover:from-cyan-500 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Save size={18} />
+                {personChanged ? 'Save Personal Info' : 'Saved'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Danger Zone */}
       <div className="glass rounded-lg border border-rose-500/30 p-8 space-y-6 bg-gradient-to-br from-rose-500/10 to-rose-400/5">
