@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Calendar, Pencil, X, Loader2, Users, Eye } from 'lucide-react';
+import { Plus, Calendar, Pencil, X, Loader2, Users, Eye, Trash2, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import StatusBadge from '@/components/shared/StatusBadge';
@@ -35,6 +35,14 @@ export default function BatchesPage() {
     maxCapacity: 20,
   });
 
+  // Batch students & eligibility states
+  const [batchStudents, setBatchStudents] = useState<any[]>([]);
+  const [eligibleStudents, setEligibleStudents] = useState<any[]>([]);
+  const [loadingModalData, setLoadingModalData] = useState(false);
+  const [assigningStudentId, setAssigningStudentId] = useState('');
+  const [assigningLoading, setAssigningLoading] = useState(false);
+  const [removingStudentId, setRemovingStudentId] = useState<string | null>(null);
+
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
@@ -46,6 +54,67 @@ export default function BatchesPage() {
   useEffect(() => {
     if (schoolId) loadBatches();
   }, [schoolId]);
+
+  useEffect(() => {
+    if (selectedBatch) {
+      loadModalData();
+    } else {
+      setBatchStudents([]);
+      setEligibleStudents([]);
+      setAssigningStudentId('');
+    }
+  }, [selectedBatch]);
+
+  async function loadModalData() {
+    if (!selectedBatch || !schoolId) return;
+    try {
+      setLoadingModalData(true);
+      const studentsInBatch = await apiClient.get<any[]>(`/DrivingInstitutes/batches/${selectedBatch.id}/students`);
+      setBatchStudents(studentsInBatch);
+
+      const waitingStudents = await apiClient.get<any[]>(`/DrivingInstitutes/${schoolId}/eligible-students`);
+      setEligibleStudents(waitingStudents);
+    } catch (err) {
+      console.error('Failed to load modal details:', err);
+    } finally {
+      setLoadingModalData(false);
+    }
+  }
+
+  async function handleAssignStudent(e: React.FormEvent) {
+    e.preventDefault();
+    if (!assigningStudentId || !selectedBatch) return;
+    try {
+      setAssigningLoading(true);
+      await apiClient.post(`/DrivingInstitutes/batches/${selectedBatch.id}/assign`, {
+        applicationID: parseInt(assigningStudentId)
+      });
+      setAssigningStudentId('');
+      await loadModalData();
+      await loadBatches();
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || 'Failed to assign student.');
+    } finally {
+      setAssigningLoading(false);
+    }
+  }
+
+  async function handleRemoveStudent(applicationId: number) {
+    if (!selectedBatch) return;
+    if (!confirm('Are you sure you want to remove this student from the batch?')) return;
+    try {
+      setRemovingStudentId(applicationId.toString());
+      await apiClient.delete(`/DrivingInstitutes/batches/${selectedBatch.id}/students/${applicationId}`);
+      await loadModalData();
+      await loadBatches();
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || 'Failed to remove student.');
+    } finally {
+      setRemovingStudentId(null);
+    }
+  }
 
   async function loadBatches() {
     try {
@@ -374,11 +443,12 @@ export default function BatchesPage() {
       )}
       {/* Batch Details Modal */}
       {selectedBatch && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm animate-in fade-in p-4">
-          <div className="glass w-full max-w-lg rounded-2xl border border-slate-700/50 p-6 shadow-xl">
-            <div className="flex items-start justify-between mb-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm animate-in fade-in p-4 overflow-y-auto">
+          <div className="glass w-full max-w-2xl rounded-2xl border border-slate-700/50 p-6 shadow-xl my-8">
+            <div className="flex items-start justify-between mb-6 border-b border-slate-800 pb-4">
               <div>
-                <h2 className="text-xl font-semibold text-foreground">{selectedBatch.name}</h2>
+                <h2 className="text-xl font-bold text-foreground">{selectedBatch.name}</h2>
+                <p className="text-xs text-muted-foreground mt-1 font-mono">Batch ID: {selectedBatch.id}</p>
                 <div className="mt-2">
                   <StatusBadge status={selectedBatch.status} />
                 </div>
@@ -391,45 +461,119 @@ export default function BatchesPage() {
               </button>
             </div>
             
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="rounded-lg bg-slate-900/50 p-4 border border-slate-800/50">
-                  <p className="text-xs text-muted-foreground flex items-center gap-2 mb-1">
-                    <Calendar size={12} /> Start Date
-                  </p>
-                  <p className="text-sm font-medium">{selectedBatch.startDate}</p>
-                </div>
-                <div className="rounded-lg bg-slate-900/50 p-4 border border-slate-800/50">
-                  <p className="text-xs text-muted-foreground flex items-center gap-2 mb-1">
-                    <Calendar size={12} /> End Date
-                  </p>
-                  <p className="text-sm font-medium">{selectedBatch.endDate}</p>
-                </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <div className="rounded-lg bg-slate-900/50 p-3 border border-slate-800/50">
+                <p className="text-xs text-muted-foreground flex items-center gap-1.5 mb-1">
+                  <Calendar size={12} /> Start Date
+                </p>
+                <p className="text-sm font-medium text-foreground">{selectedBatch.startDate}</p>
               </div>
-              
-              <div className="rounded-lg bg-slate-900/50 p-4 border border-slate-800/50">
-                <div className="flex justify-between items-end mb-2">
-                  <p className="text-xs text-muted-foreground flex items-center gap-2">
-                    <Users size={12} /> Enrollment Capacity
+              <div className="rounded-lg bg-slate-900/50 p-3 border border-slate-800/50">
+                <p className="text-xs text-muted-foreground flex items-center gap-1.5 mb-1">
+                  <Calendar size={12} /> End Date
+                </p>
+                <p className="text-sm font-medium text-foreground">{selectedBatch.endDate}</p>
+              </div>
+              <div className="rounded-lg bg-slate-900/50 p-3 border border-slate-800/50">
+                <div className="flex justify-between items-end mb-1">
+                  <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                    <Users size={12} /> Capacity
                   </p>
-                  <span className="text-sm font-bold text-cyan-400">
-                    {selectedBatch.enrolledCount} / {selectedBatch.capacity}
+                  <span className="text-xs font-bold text-cyan-400">
+                    {batchStudents.length} / {selectedBatch.capacity}
                   </span>
                 </div>
-                <div className="h-2 w-full rounded-full bg-slate-800">
+                <div className="h-1.5 w-full rounded-full bg-slate-800 overflow-hidden">
                   <div
-                    className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-blue-600 transition-all duration-1000"
-                    style={{ width: `${Math.min(100, (selectedBatch.enrolledCount / selectedBatch.capacity) * 100)}%` }}
+                    className="h-full bg-gradient-to-r from-cyan-400 to-blue-600 transition-all duration-1000"
+                    style={{ width: `${Math.min(100, (batchStudents.length / selectedBatch.capacity) * 100)}%` }}
                   ></div>
                 </div>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  {Math.round((selectedBatch.enrolledCount / selectedBatch.capacity) * 100)}% full
-                </p>
               </div>
             </div>
+
+            {/* Assign Student Area */}
+            <div className="mb-6 p-4 rounded-xl border border-slate-800/50 bg-slate-900/30">
+              <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-1.5">
+                <UserPlus size={16} className="text-cyan-400" />
+                Assign Student to Batch
+              </h3>
+              {eligibleStudents.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  No enrolled students are currently waiting for batch assignment.
+                </p>
+              ) : (
+                <form onSubmit={handleAssignStudent} className="flex gap-2">
+                  <select
+                    value={assigningStudentId}
+                    onChange={(e) => setAssigningStudentId(e.target.value)}
+                    className="flex-1 rounded-lg glass border border-slate-700/50 bg-slate-950/60 px-3 py-1.5 text-sm text-foreground focus:outline-none focus:border-cyan-400"
+                  >
+                    <option value="">Select student...</option>
+                    {eligibleStudents.map((student) => (
+                      <option key={student.applicationID} value={student.applicationID}>
+                        {student.fullName} ({student.className})
+                      </option>
+                    ))}
+                  </select>
+                  <Button
+                    type="submit"
+                    disabled={assigningLoading || !assigningStudentId}
+                    className="bg-gradient-to-r from-cyan-400 to-blue-600 hover:from-cyan-500 hover:to-blue-700 text-white font-semibold text-xs px-4 py-1.5 rounded-lg flex items-center gap-1.5 disabled:opacity-50"
+                  >
+                    {assigningLoading ? (
+                      <Loader2 size={12} className="animate-spin" />
+                    ) : (
+                      'Assign'
+                    )}
+                  </Button>
+                </form>
+              )}
+            </div>
+
+            {/* Batch Roster list */}
+            <div className="mb-6">
+              <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-1.5">
+                <Users size={16} className="text-blue-400" />
+                Batch Roster
+              </h3>
+              {loadingModalData ? (
+                <div className="flex justify-center items-center py-8">
+                  <Loader2 className="animate-spin text-cyan-400" size={24} />
+                </div>
+              ) : batchStudents.length === 0 ? (
+                <div className="text-center py-6 border border-dashed border-slate-800 rounded-lg">
+                  <p className="text-xs text-muted-foreground">No students assigned to this batch yet.</p>
+                </div>
+              ) : (
+                <div className="max-h-[200px] overflow-y-auto border border-slate-800/80 rounded-lg divide-y divide-slate-800/60 bg-slate-950/20">
+                  {batchStudents.map((std) => (
+                    <div key={std.applicationID} className="flex justify-between items-center px-4 py-2.5 transition-colors hover:bg-slate-900/40">
+                      <div>
+                        <p className="text-sm font-medium text-foreground">{std.fullName}</p>
+                        <p className="text-xs text-muted-foreground">{std.phone || 'No phone'}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveStudent(std.applicationID)}
+                        disabled={removingStudentId === std.applicationID.toString()}
+                        className="p-1.5 text-rose-400 hover:bg-rose-500/10 rounded transition-colors disabled:opacity-50"
+                        title="Remove student from batch"
+                      >
+                        {removingStudentId === std.applicationID.toString() ? (
+                          <Loader2 size={14} className="animate-spin" />
+                        ) : (
+                          <Trash2 size={14} />
+                        )}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
             
-            <div className="mt-6 flex justify-end gap-3">
-              <Button variant="outline" onClick={() => setSelectedBatch(null)}>Close</Button>
+            <div className="flex justify-end border-t border-slate-800 pt-4">
+              <Button variant="outline" className="text-foreground hover:bg-slate-800/50" onClick={() => setSelectedBatch(null)}>Close</Button>
             </div>
           </div>
         </div>

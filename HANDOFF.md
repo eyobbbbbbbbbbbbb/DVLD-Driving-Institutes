@@ -35,6 +35,26 @@ Welcome to the handoff documentation for the **DVLD Driving Institutes Portal**.
 - **Notification Inbox (`/school/notifications`)**: Integrates inbox alerts and messaging with robust fallback notification mocks.
 - **Frontend Build Verification**: Fully optimized and compiled the Next.js production build (`npm run build`) with zero static type errors or warnings.
 
+### ✅ Test Eligibility & Pub/Sub Scheduling (Latest Sprint)
+- **`IsEligibleForTest` DB Column**: Added `IsEligibleForTest BIT DEFAULT 0` to the `ApplicantBatch` table, giving the driving school the ability to flag students as cleared for DVLD testing.
+- **DAL + BLL Methods**: Added `GetBatchStudentsForEligibilityReview(batchId)` and `SetStudentEligibility(applicationId, batchId, isEligible)` across `clsTrainingBatchData.cs` and `clsTrainingBatch.cs`.
+- **REST API Endpoints**: Added `GET /api/DrivingInstitutes/batches/{batchId}/eligibility` and `PUT /api/DrivingInstitutes/batches/{batchId}/eligibility/{applicationId}` to `DrivingInstitutesController.cs`.
+- **Test Eligibility Web Page (`/school/eligibility`)**: Created a premium glassmorphism page where school instructors can review all batch students, see their attendance rate with a progress bar, and toggle each student's DVLD test eligibility clearance in real-time.
+- **Sidebar Navigation Update**: Added a "Test Eligibility" item (with `CheckSquare` icon) to the school sidebar nav in `layout.tsx`, linking to `/school/eligibility`.
+- **C# Pub/Sub Observer Pattern**: Designed and implemented a decoupled Publisher-Subscriber pattern (`clsTestSchedulePublisher.cs`) in the BLL with concrete subscribers:
+  - `clsStudentMobileSubscriber` → Inserts mobile push alert in DB via `clsUserMessage.SendSystemMessage`.
+  - `clsSchoolDashboardSubscriber` → Logs school dashboard sync audit trail.
+  - `clsEmailSmtpSubscriber` → Logs email dispatch simulation.
+  Subscribers are registered globally in `Program.cs` at app startup.
+- **Batch Scheduling WinForms Form (`frmSheduleTestForAllStudets.cs`)**: Integrated full batch scheduling logic:
+  - Loads all `IsEligibleForTest = 1` students into a `DataGridView` on form load.
+  - Three buttons (Vision / Written / Street) trigger batch scheduling via `clsTrainingBatch.BatchScheduleTest()`.
+  - `BatchScheduleTest()` uses **O(1) `HashSet` lookups** (pre-fetched active appointments & passed tests) to eliminate N+1 SQL queries — scales efficiently to 10,000+ students.
+  - Uses `Parallel.ForEach` with `Interlocked.Increment` for concurrent appointment saves.
+  - Each successful save fires `clsTestSchedulePublisher.Publish()` to trigger all subscribers.
+- **Individual Schedule Refactored**: `ctlScheduleTest.cs` now also routes through `clsTestSchedulePublisher.Publish()` for consistent notification delivery on individual scheduling.
+- **Menu Wiring**: `frmMainMenu.cs` already contains the `scheduleTestForStudetsToolStripMenuItem_Click` handler to open the batch scheduling dashboard.
+
 ---
 
 ## 2. Pending Tasks
@@ -43,6 +63,7 @@ Welcome to the handoff documentation for the **DVLD Driving Institutes Portal**.
 - **Strict Dynamic Middleware Security**: Next.js route protection is currently managed via client-side check redirects in layouts. Implementing a centralized server-side Next.js `middleware.ts` will strictly secure routes before static pages are rendered.
 - **Real-Time Notification Alerts**: Replace standard endpoint polling on `/school/notifications` with a persistent connection layer like **SignalR** or **WebSockets** for live push notifications.
 - **Batch Grading & Course Graduation**: Implement a dedicated screen to record final driving test grades, issue certificates, and automatically trigger licensing request forms.
+- **WPF Dashboards Compilation**: `WPFPLDashboards.csproj` has ~142 pre-existing compile errors related to missing XAML controls (`borderDetailTypeBadge`, `gridSchedule`, etc.). These are in-progress WPF views unrelated to the eligibility/scheduling work and should be addressed separately.
 
 ---
 

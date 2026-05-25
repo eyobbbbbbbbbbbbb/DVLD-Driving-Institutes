@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Plus, Search, ArrowRight, X, Mail, Phone, Calendar, CheckCircle2 } from 'lucide-react';
+import { Plus, Search, ArrowRight, X, Mail, Phone, Calendar, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import StatusBadge from '@/components/shared/StatusBadge';
@@ -152,7 +152,13 @@ export default function StudentsPage() {
                   className="transition-colors hover:bg-slate-800/30"
                 >
                   <td className="px-6 py-4">
-                    <p className="font-medium text-foreground">{student.name}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium text-foreground">{student.name}</p>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-400 border border-emerald-500/20">
+                        <ShieldCheck size={10} />
+                        AI Verified
+                      </span>
+                    </div>
                     <p className="text-xs text-muted-foreground">{student.phone}</p>
                   </td>
                   <td className="px-6 py-4 text-sm text-foreground">

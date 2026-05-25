@@ -10,6 +10,7 @@ import {
   Megaphone,
   CreditCard,
   Settings,
+  CheckSquare,
 } from 'lucide-react';
 
 const navItems = [
@@ -32,6 +33,11 @@ const navItems = [
     label: 'Attendance',
     href: '/school/attendance',
     icon: <Calendar size={20} />,
+  },
+  {
+    label: 'Test Eligibility',
+    href: '/school/eligibility',
+    icon: <CheckSquare size={20} />,
   },
   {
     label: 'Courses',
