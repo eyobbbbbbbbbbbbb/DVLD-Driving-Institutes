@@ -35,11 +35,11 @@ export default function LoginForm() {
 
       // Map roles
       let mappedRole: 'admin' | 'school_admin' | 'instructor' | 'student' | 'officer' = 'student';
-      if (response.role === 'SystemAdmin') {
+      if (response.role === 'SystemAdmin' || response.role === 'Admin') {
         mappedRole = 'admin';
-      } else if (response.role === 'InstituteManager') {
+      } else if (response.role === 'InstituteManager' || response.role === 'Institute Manager') {
         mappedRole = 'school_admin';
-      } else if (response.role === 'InstituteInstructor') {
+      } else if (response.role === 'InstituteInstructor' || response.role === 'Institute Instructor') {
         mappedRole = 'instructor';
       } else if (response.role === 'Officer') {
         mappedRole = 'officer';

@@ -64,7 +64,9 @@ export default function SidebarNav({
   };
 
   const displayName = localUser?.name || schoolName || 'DVLD Training Academy';
-  const displayRole = localUser?.role ? localUser.role.replace('_', ' ') : userRole || 'School Admin';
+  const displayRole = localUser?.role 
+    ? (localUser.role === 'school_admin' ? 'Institute Manager' : localUser.role.replace('_', ' ')) 
+    : userRole || 'Institute Manager';
 
   return (
     <div className="glass glass-lg sticky top-0 flex h-screen w-64 flex-col border-r border-slate-800/50 bg-slate-900/80">

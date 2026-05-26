@@ -11,6 +11,7 @@ import {
   CreditCard,
   Settings,
   CheckSquare,
+  GraduationCap,
 } from 'lucide-react';
 
 const navItems = [
@@ -23,6 +24,11 @@ const navItems = [
     label: 'Students',
     href: '/school/students',
     icon: <Users size={20} />,
+  },
+  {
+    label: 'Instructors',
+    href: '/school/instructors',
+    icon: <GraduationCap size={20} />,
   },
   {
     label: 'Training Batches',
@@ -78,7 +84,7 @@ export default function SchoolLayout({
 }) {
   return (
     <div className="flex h-screen bg-background">
-      <SidebarNav items={navItems} schoolName="DVLD Training Academy" userRole="School Admin" />
+      <SidebarNav items={navItems} schoolName="DVLD Training Academy" userRole="Institute Manager" />
       <main className="flex-1 overflow-auto">
         {children}
       </main>
